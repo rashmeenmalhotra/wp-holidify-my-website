@@ -1,0 +1,63 @@
+/* Floating icons positions */
+#holidify-icons-wrapper {
+    position: fixed;
+    pointer-events: none;
+    inset: 0;
+    z-index: 9998;
+}
+
+.holidify-floating-icon {
+    position: absolute;
+    font-size: 40px;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.25));
+    animation: holidify-float 3s ease-in-out infinite;
+}
+
+.holidify-floating-icon.pos-1 {
+    top: 15%;
+    left: 8%;
+    animation-delay: 0s;
+}
+
+.holidify-floating-icon.pos-2 {
+    top: 50%;
+    right: 10%;
+    animation-delay: 0.8s;
+}
+
+.holidify-floating-icon.pos-3 {
+    bottom: 18%;
+    left: 18%;
+    animation-delay: 1.6s;
+}
+
+@keyframes holidify-float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-14px);
+    }
+}
+
+/* Animation layer */
+.holidify-animation {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9997;
+    overflow: hidden;
+}
+
+/* Generic particle styling, specific types handled via JS */
+.holidify-particle {
+    position: absolute;
+}
+
+/* Optional: reduce motion if user prefers */
+@media (prefers-reduced-motion: reduce) {
+    .holidify-floating-icon,
+    .holidify-particle {
+        animation: none !important;
+    }
+}
