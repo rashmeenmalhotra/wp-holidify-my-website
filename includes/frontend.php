@@ -5,6 +5,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Show greeting board on frontend
+ */
+function holidify_render_greeting_board() {
+
+    if ( is_admin() ) {
+        return;
+    }
+
+    if ( get_option( 'holidify_paused', false ) ) {
+        return;
+    }
+
+    $holidays = holidify_get_holidays();
+    $active_id = holidify_get_active_holiday_based_on_date( $holidays );
+
+    if ( ! $active_id || empty( $holidays[ $active_id ] ) ) {
+        return;
+    }
+
+    $holiday = $holidays[ $active_id ];
+
+    // Greeting fallback
+    $greeting = $holiday['greeting'] ?? '';
+    if ( $greeting === '' ) {
+        $greeting = 'Happy ' . ( $holiday['name'] ?? '' ) . ' 🎉';
+    }
+    ?>
+    <div class="holidify-greeting-board">
+        <span class="holidify-greeting-emoji">🎉</span>
+        <span class="holidify-greeting-text"><?php echo esc_html( $greeting ); ?></span>
+    </div>
+    <?php
+}
+
+add_action( 'wp_footer', 'holidify_render_greeting_board' );
+
+
+/**
  * Enqueue frontend assets if a holiday is active.
  */
 function holidify_enqueue_frontend_assets() {

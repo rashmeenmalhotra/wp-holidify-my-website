@@ -1,6 +1,8 @@
 (function($) {
     'use strict';
 
+    console.log("Holidify Admin JS Loaded");
+
     let currentIconInput = null;
 
     function openIconModal(inputEl) {
@@ -16,30 +18,30 @@
         $('.holidify-icon-option').removeClass('is-selected');
     }
 
+    /**
+     * Collect row data INCLUDING GREETING
+     */
     function collectRowData($row) {
-        const id = $row.data('holidify-id');
-        const name = $row.find('.holidify-name').val();
-        const start = $row.find('.holidify-start-date').val();
-        const end = $row.find('.holidify-end-date').val();
-        const animation = $row.find('.holidify-animation-select').val();
-
-        const icons = [];
-        $row.find('.holidify-icon').each(function() {
-            icons.push($(this).val());
-        });
-
         return {
-            id: id,
-            name: name,
-            start_date: start,
-            end_date: end,
-            animation: animation,
-            icons: icons
+            id: $row.data('holidify-id'),
+            name: $row.find('.holidify-name').val(),
+            greeting: $row.find('.holidify-greeting').val(), 
+            start_date: $row.find('.holidify-start-date').val(),
+            end_date: $row.find('.holidify-end-date').val(),
+            animation: $row.find('.holidify-animation-select').val(),
+            icons: $row.find('.holidify-icon').map(function() {
+                return $(this).val();
+            }).get()
         };
     }
 
+    /**
+     * SAVE ROW — AJAX
+     */
     function saveRow($row) {
         const data = collectRowData($row);
+
+        console.log("Saving Holiday:", data);
 
         if (!data.name) {
             alert('Please enter a holiday name.');
@@ -53,31 +55,44 @@
                 nonce: holidifyAdmin.nonce,
                 id: data.id,
                 name: data.name,
+                greeting: data.greeting,
                 start_date: data.start_date,
                 end_date: data.end_date,
                 animation: data.animation,
                 icons: data.icons
             }
-        ).done(function(response) {
+        )
+        .done(function(response) {
+            console.log("Save response:", response);
+
             if (response && response.success) {
-                // Optionally show a nicer notice instead of alert
-                // For now keep it simple
-                // alert(response.data.message || 'Saved.');
-                // Reload to refresh in case of newly added row
                 window.location.reload();
             } else {
-                alert((response && response.data && response.data.message) || 'Error while saving.');
+                alert(response?.data?.message || 'Error while saving.');
             }
-        }).fail(function() {
-            alert('Ajax error while saving holiday.');
+        })
+        .fail(function() {
+            alert('AJAX error while saving holiday.');
         });
     }
 
+    /**
+     * ⭐ RESTORED: Save button click handler
+     */
+    $(document).on('click', '.holidify-save-holiday', function() {
+        console.log("SAVE button clicked");
+        const $row = $(this).closest('tr');
+        saveRow($row);
+    });
+
+    /**
+     * Delete row
+     */
     function deleteRow($row) {
         const id = $row.data('holidify-id');
         if (!id) return;
 
-        if (!window.confirm('Are you sure you want to delete this holiday?')) {
+        if (!confirm('Are you sure you want to delete this holiday?')) {
             return;
         }
 
@@ -88,205 +103,120 @@
                 nonce: holidifyAdmin.nonce,
                 id: id
             }
-        ).done(function(response) {
-            if (response && response.success) {
-                $row.fadeOut(200, function() {
-                    $(this).remove();
-                });
+        )
+        .done(function(response) {
+            if (response?.success) {
+                $row.fadeOut(200, () => $row.remove());
             } else {
-                alert((response && response.data && response.data.message) || 'Error while deleting.');
+                alert(response?.data?.message || 'Error while deleting.');
             }
-        }).fail(function() {
-            alert('Ajax error while deleting holiday.');
+        })
+        .fail(function() {
+            alert('AJAX error while deleting holiday.');
         });
     }
 
-    function setActiveHoliday(id) {
+    $(document).on('click', '.holidify-delete-holiday', function() {
+        const $row = $(this).closest('tr');
+        deleteRow($row);
+    });
+
+    /**
+     * Pause mode
+     */
+    $(document).on('click', '.holidify-disable-all', function() {
         $.post(
             holidifyAdmin.ajax_url,
             {
-                action: 'holidify_set_active_holiday',
-                nonce: holidifyAdmin.nonce,
-                id: id
+                action: 'holidify_pause_holiday_mode',
+                nonce: holidifyAdmin.nonce
             }
-        ).done(function(response) {
-            if (response && response.success) {
-                window.location.reload();
-            } else {
-                alert((response && response.data && response.data.message) || 'Error while setting active holiday.');
-            }
-        }).fail(function() {
-            alert('Ajax error while setting active holiday.');
-        });
-    }
+        ).done(() => window.location.reload());
+    });
 
-    function createNewRow() {
+    /**
+     * Resume mode
+     */
+    $(document).on('click', '.holidify-resume-holiday', function() {
+        $.post(
+            holidifyAdmin.ajax_url,
+            {
+                action: 'holidify_resume_holiday_mode',
+                nonce: holidifyAdmin.nonce
+            }
+        ).done(() => window.location.reload());
+    });
+
+    /**
+     * Add new row
+     */
+    $('#holidify-add-new-holiday').on('click', function() {
         const id = 'custom_' + Date.now();
         const $tbody = $('#holidify-table-body');
 
-        const $row = $('<tr/>', {
-            'data-holidify-id': id
-        });
+        const newRow = `
+        <tr data-holidify-id="${id}">
+            <td><input type="text" class="regular-text holidify-name"></td>
 
-        const $activeTd = $('<td/>', { 'class': 'column-active' }).append(
-            $('<input/>', {
-                type: 'radio',
-                name: 'holidify_active',
-                'class': 'holidify-active-radio'
-            })
-        );
+            <td><input type="text" class="regular-text holidify-greeting" placeholder="e.g. Merry Christmas 🎄"></td>
 
-        const $nameTd = $('<td/>').append(
-            $('<input/>', {
-                type: 'text',
-                'class': 'regular-text holidify-name',
-                value: ''
-            })
-        );
+            <td><input type="date" class="small-text holidify-start-date"></td>
+            <td><input type="date" class="small-text holidify-end-date"></td>
 
-        const $startTd = $('<td/>').append(
-            $('<input/>', {
-                type: 'date',
-                'class': 'small-text holidify-start-date',
-                value: ''
-            })
-        );
+            <td class="holidify-icons-cell">
+                <div class="holidify-icon-inputs">
+                    <input type="text" class="small-text holidify-icon" maxlength="4">
+                    <input type="text" class="small-text holidify-icon" maxlength="4">
+                    <input type="text" class="small-text holidify-icon" maxlength="4">
+                    <button type="button" class="button button-secondary holidify-icon-picker-btn">Icon Picker</button>
+                </div>
+            </td>
 
-        const $endTd = $('<td/>').append(
-            $('<input/>', {
-                type: 'date',
-                'class': 'small-text holidify-end-date',
-                value: ''
-            })
-        );
+            <td>
+                <select class="holidify-animation-select">
+                    <option value="none">None</option>
+                    <option value="snowflakes">Snowflakes</option>
+                    <option value="bats">Bats</option>
+                    <option value="leaves">Falling Leaves</option>
+                    <option value="confetti">Confetti</option>
+                    <option value="hearts">Floating Hearts</option>
+                    <option value="fireworks">Fireworks</option>
+                    <option value="maple">Maple Leaves</option>
+                    <option value="eggs">Bouncing Eggs</option>
+                </select>
+            </td>
 
-        const $iconsTd = $('<td/>', { 'class': 'holidify-icons-cell' });
-        const $iconWrapper = $('<div/>', { 'class': 'holidify-icon-inputs' });
+            <td>
+                <button type="button" class="button button-primary holidify-save-holiday">Save</button>
+                <button type="button" class="button button-link-delete holidify-delete-holiday">Delete</button>
+            </td>
+        </tr>`;
 
-        for (let i = 0; i < 3; i++) {
-            $iconWrapper.append(
-                $('<input/>', {
-                    type: 'text',
-                    'class': 'small-text holidify-icon',
-                    maxlength: 4,
-                    value: ''
-                })
-            );
+        $tbody.append(newRow);
+    });
+
+    /**
+     * Modal events
+     */
+    $(document).on('click', '.holidify-icon-picker-btn', function() {
+        const input = $(this).siblings('.holidify-icon').first().get(0);
+        openIconModal(input);
+    });
+
+    $(document).on('click', '.holidify-modal-close, .holidify-modal-cancel, .holidify-modal-backdrop', function(e) {
+        e.preventDefault();
+        closeIconModal();
+    });
+
+    $(document).on('click', '.holidify-icon-option', function() {
+        $('.holidify-icon-option').removeClass('is-selected');
+        $(this).addClass('is-selected');
+
+        if (currentIconInput) {
+            currentIconInput.value = $(this).text();
         }
 
-        $iconWrapper.append(
-            $('<button/>', {
-                type: 'button',
-                'class': 'button button-secondary holidify-icon-picker-btn',
-                text: 'Icon Picker'
-            })
-        );
-
-        $iconsTd.append($iconWrapper);
-
-        const $animationTd = $('<td/>');
-        const $select = $('<select/>', { 'class': 'holidify-animation-select' });
-
-        const animations = {
-            none: 'None',
-            snowflakes: 'Snowflakes',
-            bats: 'Bats',
-            leaves: 'Falling Leaves',
-            confetti: 'Confetti',
-            hearts: 'Floating Hearts',
-            fireworks: 'Fireworks',
-            maple: 'Maple Leaves',
-            eggs: 'Bouncing Eggs'
-        };
-
-        $.each(animations, function(value, label) {
-            $select.append($('<option/>', {
-                value: value,
-                text: label
-            }));
-        });
-
-        $animationTd.append($select);
-
-        const $actionsTd = $('<td/>');
-        $actionsTd.append(
-            $('<button/>', {
-                type: 'button',
-                'class': 'button button-primary holidify-save-holiday',
-                text: 'Save'
-            })
-        );
-        $actionsTd.append(' ');
-        $actionsTd.append(
-            $('<button/>', {
-                type: 'button',
-                'class': 'button button-link-delete holidify-delete-holiday',
-                text: 'Delete'
-            })
-        );
-
-        $row.append($activeTd, $nameTd, $startTd, $endTd, $iconsTd, $animationTd, $actionsTd);
-        $tbody.append($row);
-        return $row;
-    }
-
-    $(function() {
-
-        // Save row
-        $(document).on('click', '.holidify-save-holiday', function() {
-            const $row = $(this).closest('tr');
-            saveRow($row);
-        });
-
-        // Delete row
-        $(document).on('click', '.holidify-delete-holiday', function() {
-            const $row = $(this).closest('tr');
-            deleteRow($row);
-        });
-
-        // Set active holiday
-        $(document).on('change', '.holidify-active-radio', function() {
-            const $row = $(this).closest('tr');
-            const id = $row.data('holidify-id');
-            if (id) {
-                setActiveHoliday(id);
-            }
-        });
-
-        // Disable all holidays
-        $('.holidify-disable-all').on('click', function() {
-            setActiveHoliday('');
-        });
-
-        // Add new holiday row
-        $('#holidify-add-new-holiday').on('click', function() {
-            createNewRow();
-        });
-
-        // Open icon modal
-        $(document).on('click', '.holidify-icon-picker-btn', function() {
-            const $input = $(this).siblings('.holidify-icon').first();
-            openIconModal($input.get(0));
-        });
-
-        // Close modal
-        $(document).on('click', '.holidify-modal-close, .holidify-modal-cancel, .holidify-modal-backdrop', function(e) {
-            e.preventDefault();
-            closeIconModal();
-        });
-
-        // Select icon
-        $(document).on('click', '.holidify-icon-option', function() {
-            $('.holidify-icon-option').removeClass('is-selected');
-            $(this).addClass('is-selected');
-
-            if (currentIconInput) {
-                currentIconInput.value = $(this).text();
-            }
-
-            // Close immediately after choosing
-            closeIconModal();
-        });
+        closeIconModal();
     });
 
 })(jQuery);

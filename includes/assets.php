@@ -8,8 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Enqueue admin assets only on plugin page.
  */
 function holidify_enqueue_admin_assets( $hook ) {
-    if ( $hook !== 'toplevel_page_holidify-my-website' ) {
-        return;
+if ( strpos( $hook, 'holidify' ) === false ) {
+            return;
     }
 
     wp_enqueue_style(

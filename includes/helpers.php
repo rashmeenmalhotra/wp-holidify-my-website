@@ -65,6 +65,7 @@ function holidify_sanitize_holiday( $data ) {
     $sanitized = array();
 
     $sanitized['name']       = isset( $data['name'] ) ? sanitize_text_field( $data['name'] ) : '';
+    $sanitized['greeting']   = isset( $data['greeting'] ) ? sanitize_text_field( $data['greeting'] ) : ''; // <-- FIX
     $sanitized['start_date'] = isset( $data['start_date'] ) ? sanitize_text_field( $data['start_date'] ) : '';
     $sanitized['end_date']   = isset( $data['end_date'] ) ? sanitize_text_field( $data['end_date'] ) : '';
     $sanitized['animation']  = isset( $data['animation'] ) ? sanitize_text_field( $data['animation'] ) : 'snowflakes';
@@ -88,4 +89,32 @@ function holidify_sanitize_holiday( $data ) {
     $sanitized['enabled'] = ! empty( $data['enabled'] ) ? 1 : 0;
 
     return $sanitized;
+}
+
+/**
+ * Find the active holiday based on today's date.
+ *
+ * @param array $holidays Holiday list.
+ * @return string|null
+ */
+function holidify_get_active_holiday_based_on_date( $holidays ) {
+
+    if ( empty( $holidays ) ) {
+        return null;
+    }
+
+    $today = current_time( 'Y-m-d' );
+
+    foreach ( $holidays as $id => $holiday ) {
+        if (
+            ! empty( $holiday['start_date'] ) &&
+            ! empty( $holiday['end_date'] ) &&
+            $holiday['start_date'] <= $today &&
+            $holiday['end_date'] >= $today
+        ) {
+            return $id;
+        }
+    }
+
+    return null;
 }
